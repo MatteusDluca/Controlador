@@ -1,32 +1,31 @@
-# --- FASE 1: BUILDER ---
-# Usa a imagem oficial e mais recente do Go, que já tem tudo que precisamos.
-FROM golang:1.23-alpine AS builder
+# Usamos a imagem completa do Go como nossa base final para o ambiente de desenvolvimento.
+# Isso garante que o compilador 'go' e outras ferramentas estejam disponíveis para o Air.
+FROM golang:1.24-alpine
 
-# Instala o Git, que ainda pode ser útil.
+# Instala o Git, que pode ser necessário para algumas dependências.
 RUN apk add --no-cache git
 
+# Define o diretório de trabalho dentro do container.
 WORKDIR /app
 
-# Copia todo o nosso contexto de projeto, incluindo a pasta "vendor".
+# Instala a ferramenta de hot-reloading Air usando o novo caminho oficial.
+RUN go install github.com/air-verse/air@latest
+
+# Copia os arquivos de gerenciamento de dependências.
+COPY go.mod go.sum ./
+
+# Baixa as dependências para o cache do container.
+RUN go mod download
+
+# Copia todo o código-fonte para o diretório de trabalho.
+# O volume no docker-compose.yml irá sobrepor isso em tempo de execução,
+# mas esta cópia é útil para o build inicial e para ter um estado base.
 COPY . .
 
-# Compila o nosso aplicativo.
-# A flag "-mod=vendor" é a ordem crucial: "Use apenas os pacotes da pasta vendor".
-# A build é agora 100% offline e autossuficiente.
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -o /usr/local/bin/controlador-server ./cmd/server
-
-# --- FASE 2: FINAL ---
-# Usa a imagem mínima do Alpine para um resultado final pequeno e seguro.
-FROM alpine:latest
-
-# Instala apenas os certificados, que são essenciais.
-RUN apk add --no-cache ca-certificates
-
-# Copia APENAS o binário compilado da fase de 'builder'.
-COPY --from=builder /usr/local/bin/controlador-server /usr/local/bin/controlador-server
-
-# Expõe a porta.
+# Expõe a porta que a nossa aplicação usa.
 EXPOSE 8080
 
-# O comando para iniciar nosso servidor.
-CMD ["/usr/local/bin/controlador-server"]
+# Comando final que inicia o container.
+# Nós rodamos o Air, que por sua vez irá compilar e rodar nosso app,
+# reiniciando-o automaticamente a cada alteração de arquivo.
+CMD ["air", "-c", ".air.toml"]

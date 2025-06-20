@@ -1,15 +1,12 @@
 package handlers
 
 import (
-	"errors"
-	"net/http"
-
-	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
-
 	"controlador/backend/internal/models"
 	"controlador/backend/internal/services"
-
+	"errors"
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
+	"net/http"
 )
 
 type TransacaoHandler struct {
@@ -18,7 +15,6 @@ type TransacaoHandler struct {
 	reverseService *services.ReverseTransacaoService
 }
 
-// CORREÇÃO: Adicionado o reverseSvc como parâmetro.
 func NewTransacaoHandler(createSvc *services.CreateTransacaoService, listSvc *services.ListTransacoesService, reverseSvc *services.ReverseTransacaoService) *TransacaoHandler {
 	return &TransacaoHandler{
 		createService:  createSvc,
@@ -27,8 +23,14 @@ func NewTransacaoHandler(createSvc *services.CreateTransacaoService, listSvc *se
 	}
 }
 
+// ALTERAÇÃO: Este método foi adicionado para lidar com a rota de estorno.
 func (h *TransacaoHandler) ReverseTransacao(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID da transação é obrigatório"})
+		return
+	}
+
 	estorno, err := h.reverseService.Execute(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, services.ErrTransacaoJaEstornada) {

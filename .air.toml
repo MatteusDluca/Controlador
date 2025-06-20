@@ -1,0 +1,25 @@
+# Configurações globais do Air
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Comando para compilar a aplicação. O binário será gerado em ./tmp/main
+cmd = "go build -o ./tmp/main ./cmd/server"
+# Binário que o Air irá executar.
+bin = "./tmp/main"
+# Lista de extensões de arquivo que irão disparar a recompilação.
+include_ext = ["go", "tpl", "tmpl", "html"]
+# Pastas para ignorar.
+exclude_dir = ["assets", "tmp", "vendor"]
+# Comando para rodar o binário.
+full_bin = "./tmp/main"
+# Adiciona um pequeno atraso para evitar múltiplos reloads.
+delay = 1000 # ms
+
+[log]
+# Mostra o tempo no log.
+time = true
+
+[misc]
+# Limpa o diretório tmp ao sair.
+clean_on_exit = true

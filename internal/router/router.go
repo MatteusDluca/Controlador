@@ -1,53 +1,60 @@
 package router
 
 import (
-	"net/http"
-	"time"
-
+	"controlador/backend/internal/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-
-	"controlador/backend/internal/handlers"
-
+	"net/http"
+	"time"
 )
 
-// SetupRouter configura o motor Gin com todos os middlewares e rotas.
-// Ele recebe os handlers como dependências para conectar as rotas à lógica correta.
 func SetupRouter(
 	ativoHandler *handlers.AtivoHandler,
 	transacaoHandler *handlers.TransacaoHandler,
+	categoriaHandler *handlers.CategoriaHandler,
+	transacaoRecorrenteHandler *handlers.TransacaoRecorrenteHandler,
 ) *gin.Engine {
-	// Cria um novo motor Gin, sem os middlewares padrão.
 	router := gin.New()
+	router.Use(ginZerologLogger())
+	router.Use(gin.Recovery())
 
-	// Adiciona nossos middlewares customizados de forma explícita.
-	router.Use(ginZerologLogger()) // Nosso logger estruturado.
-	router.Use(gin.Recovery())   // Recupera de panics para não derrubar o servidor.
-
-	// Rota de verificação de saúde do sistema.
 	router.GET("/ping", func(c *gin.Context) {
 		log.Debug().Msg("Recebida requisição na rota /ping")
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
-	// Agrupa todas as rotas da nossa API sob o prefixo /api/v1 para versionamento.
 	apiV1 := router.Group("/api/v1")
 	{
-		// Rotas para Ativos Financeiros
+		// Rotas de Ativos
 		apiV1.POST("/ativos", ativoHandler.CreateAtivoFinanceiro)
 		apiV1.GET("/ativos", ativoHandler.GetAtivosFinanceiros)
+		apiV1.DELETE("/ativos/:id", ativoHandler.DeactivateAtivoFinanceiro)
 
-		// Rotas para Transações
+		// Rotas de Transações
 		apiV1.POST("/transacoes", transacaoHandler.CreateTransacao)
 		apiV1.GET("/transacoes", transacaoHandler.GetTransacoes)
+		// ALTERAÇÃO: Nova rota para estornar uma transação.
+		apiV1.POST("/transacoes/:id/reverter", transacaoHandler.ReverseTransacao)
+
+		// Rotas de Categorias
+		apiV1.POST("/categorias", categoriaHandler.CreateCategoria)
+		apiV1.GET("/categorias", categoriaHandler.GetCategorias)
+
+		// Rotas de Transações Recorrentes
+		apiV1.POST("/recorrencias", transacaoRecorrenteHandler.CreateTransacaoRecorrente)
+		// CORREÇÃO: Esta rota estava causando o 404 e agora está corretamente registrada.
+		apiV1.GET("/ativos/:id/recorrencias", transacaoRecorrenteHandler.ListTransacoesRecorrentesPorAtivo)
 	}
 
-	// Retorna o motor Gin totalmente configurado.
+	admin := router.Group("/admin")
+	{
+		admin.POST("/workers/processar-recorrencias", transacaoRecorrenteHandler.ProcessarRecorrencias)
+	}
+
 	return router
 }
 
-// ginZerologLogger é um middleware para o Gin que usa o Zerolog para logar cada requisição.
 func ginZerologLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
