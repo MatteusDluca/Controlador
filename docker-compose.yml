@@ -1,0 +1,48 @@
+
+services:
+  # Serviço do nosso backend em Go
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    container_name: controlador-backend-service
+    # Garante que o container do banco de dados inicie antes do backend
+    depends_on:
+      - db
+    # Variáveis de ambiente para o backend se conectar ao banco de dados
+    # O Go usará essas variáveis para montar a string de conexão.
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=controlador_user
+      - DB_PASSWORD=sua_senha_segura
+      - DB_NAME=controlador_db
+      - GIN_MODE=debug # 'release' para produção
+
+  # Novo serviço para o banco de dados PostgreSQL
+  db:
+    # Usamos a imagem oficial do PostgreSQL baseada em Alpine (mais leve)
+    image: postgres:15-alpine
+    container_name: controlador-db-service
+    # Variáveis para inicializar o banco de dados
+    environment:
+      - POSTGRES_USER=controlador_user
+      - POSTGRES_PASSWORD=sua_senha_segura
+      - POSTGRES_DB=controlador_db
+    ports:
+      # Expomos a porta 5432 para que possamos nos conectar ao BD
+      # de fora do container, se necessário (ex: com DBeaver, DataGrip).
+      - "5432:5432"
+    volumes:
+      # Este volume garante que os dados do seu banco de dados persistam
+      # no seu computador local, mesmo se o container for removido.
+      # ESSENCIAL PARA NÃO PERDER DADOS.
+      - postgres_data:/var/lib/postgresql/data
+
+# Define o volume nomeado para persistência dos dados do PostgreSQL
+volumes:
+  postgres_data:
